@@ -7,7 +7,7 @@ str_type = str if sys.version > '3' else basestring
 
 # Just some tunes to test against
 tunes = [
-"""
+"""\
 X: 1
 T: The Road To Lisdoonvarna
 R: slide
@@ -17,7 +17,7 @@ K: Edor
 E2B B2A B2c d2A|F2A ABA D2E FED|E2B B2A B2c d3|cdc B2A B2E E3:|
 |:e2f gfe d2B Bcd|c2A ABc d2B B3|e2f gfe d2B Bcd|cdc B2A B2E E3:||
 """,
-"""
+"""\
 X: 6
 T: The Kid On The Mountain
 R: slip jig
@@ -89,7 +89,7 @@ file_header_fields = {k:v for k,v in info_keys.items() if v.file_header}
 tune_header_fields = {k:v for k,v in info_keys.items() if v.tune_header}
 tune_body_fields = {k:v for k,v in info_keys.items() if v.tune_body}
 inline_fields = {k:v for k,v in info_keys.items() if v.inline}
-
+name_to_info_key = {info_key.name: info_key for info_key in info_keys.values()}
 
 
 # map natural note letters to chromatic values
@@ -371,6 +371,9 @@ class Token(object):
     def __repr__(self):
         return "<%s \"%s\">" % (self.__class__.__name__, self._text)
 
+    def __str__(self):
+        return self._text
+
 
 class Note(Token):
     def __init__(self, key, time, note, accidental, octave, num, denom, **kwds):
@@ -499,12 +502,16 @@ class Tune(object):
     the TheSession API.
     """
     def __init__(self, abc=None, json=None):
+        self._tokens = []
         if abc is not None:
             self.parse_abc(abc)
         elif json is not None:
             self.parse_json(json)
         else:
             raise TypeError("must provide abc or json")
+
+    def __str__(self):
+        return self.compose_header_abc() + "".join(str(token) for token in self.tokens)
 
     @property
     def url(self):
@@ -516,6 +523,21 @@ class Tune(object):
     @property
     def notes(self):
         return [t for t in self.tokens if isinstance(t, Note)]
+
+    @property
+    def tokens(self):
+        return self._tokens
+
+    @tokens.setter
+    def tokens(self, tokens):
+        self._tokens = tokens
+
+    def compose_header_abc(self):
+        header_abc = ""
+        for name, value in self.header.items():
+            info_key = name_to_info_key[name]
+            header_abc += f"{info_key.key}: {value}\n"
+        return header_abc
 
     def parse_abc(self, abc):
         self.abc = abc
@@ -581,10 +603,8 @@ class Tune(object):
         tempo = self.header.get('tempo', None)
         time_sig = TimeSignature(meter, unit, tempo)
 
-
         tokens = []
         for i,line in enumerate(tune):
-            print(line)
             line = line.rstrip()
 
             if len(line) > 2 and line[1] == ':' and (line[0] == '+' or line[0] in tune_body_fields):
