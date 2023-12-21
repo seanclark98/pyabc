@@ -267,8 +267,15 @@ class Pitch(object):
             return val
         return (val - Pitch.pitch_value(root)) % 12
 
-    def __eq__(self, a):
-        return self.value == a.value
+    def __eq__(self, other):
+        return (
+            isinstance(other, Pitch)
+            and self.value == other.value
+            and self.octave == other.octave
+        )
+
+    def __hash__(self):
+        return hash((self.value, self.octave))
 
     @property
     def equivalent_sharp(self):
